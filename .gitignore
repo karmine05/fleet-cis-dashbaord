@@ -1,0 +1,39 @@
+# Sensitive Data
+.env
+.env.*
+secrets/
+
+# Databases
+*.db
+*.db-shm
+*.db-wal
+
+# Process IDs
+.pids/
+*.pid
+
+# Logs
+*.log
+backend.log
+sync.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+
+# Node/JS (Vite)
+node_modules/
+dist/
+.vite/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Agent
+.agent/
