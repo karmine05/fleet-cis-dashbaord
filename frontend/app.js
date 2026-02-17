@@ -621,6 +621,13 @@ async function populateAuditPage(summary) {
         const resp = await fetch(`${API_BASE}/safeguard-compliance?${new URLSearchParams(currentFilters)}`).then(r => r.json());
         auditData = resp.safeguards || [];
 
+        // 0. Update Platform Label
+        const platformLabel = document.getElementById('audit-platform-label');
+        if (platformLabel) {
+            const currentPlatform = currentFilters.platform || 'All Platforms';
+            platformLabel.textContent = currentPlatform === 'All Platforms' ? 'All Platforms' : currentPlatform;
+        }
+
         // 1. Calculate and show header metrics
         // ... (existing logic for counts) ...
         const total = auditData.length;
