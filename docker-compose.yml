@@ -6,7 +6,6 @@ services:
       - FLASK_APP=backend/app.py
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/fleet_cis
       - REDIS_URL=redis://redis:6379/0
-      # Hardcoded for debugging due to .env permission issues
       - FLEET_URL=https://example[.]com
       - FLEET_API_TOKEN=<add your token>
       - PORT=5001
@@ -16,8 +15,22 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+
+  sync:
+    image: fleet-cis-dashbaord-backend
+    command: python backend/sync_daemon.py
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/fleet_cis
+      - FLEET_URL=https://example[.]com
+      - FLEET_API_TOKEN=<add your token>
+      - SYNC_INTERVAL_MINUTES=15
+      - PYTHONPATH=/app/backend
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - ./backend:/app/backend
+    restart: always
 
   nginx:
     image: nginx:alpine
