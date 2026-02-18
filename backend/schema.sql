@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS policy_results (
     checked_at TIMESTAMPTZ NOT NULL,
     PRIMARY KEY (policy_id, host_id),
     FOREIGN KEY (policy_id) REFERENCES cis_policies(policy_id),
-    FOREIGN KEY (host_id) REFERENCES fleet_hosts(host_id)
+    FOREIGN KEY (host_id) REFERENCES fleet_hosts(host_id) ON DELETE CASCADE
 );
 
 -- Policy Results History (Partitioned by Month)

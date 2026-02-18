@@ -211,6 +211,10 @@ def sync_data():
                         ) VALUES %s
                         ON CONFLICT (host_id) DO UPDATE SET
                             hostname=EXCLUDED.hostname,
+                            platform=EXCLUDED.platform,
+                            platform_version=EXCLUDED.platform_version,
+                            team_id=EXCLUDED.team_id,
+                            team_name=EXCLUDED.team_name,
                             online_status=EXCLUDED.online_status,
                             last_seen=EXCLUDED.last_seen,
                             updated_at=NOW()
@@ -226,9 +230,30 @@ def sync_data():
                         host_id, hostname, uuid, platform, platform_version,
                         osquery_version, team_id, team_name, online_status, last_seen, updated_at
                     ) VALUES %s
-                    ON CONFLICT (host_id) DO UPDATE SET last_seen=EXCLUDED.last_seen
+                    ON CONFLICT (host_id) DO UPDATE SET 
+                        hostname=EXCLUDED.hostname,
+                        platform=EXCLUDED.platform,
+                        platform_version=EXCLUDED.platform_version,
+                        team_id=EXCLUDED.team_id,
+                        team_name=EXCLUDED.team_name,
+                        online_status=EXCLUDED.online_status,
+                        last_seen=EXCLUDED.last_seen,
+                        updated_at=NOW()
                 """, hosts_upsert_buffer)
             print(f"    ... flushed remaining. Total {len(host_ids_processed)} hosts.")
+        
+        # 2.1 Clean up stale hosts (deletions in Fleet)
+        stale_ids = set(db_state.keys()) - host_ids_processed
+        if stale_ids:
+            print(f"  🗑 Removing {len(stale_ids)} stale hosts that are no longer in Fleet...")
+            with db.get_db_cursor(commit=True) as cur:
+                # Due to FK constraints, we should delete from policy_results first 
+                # unless we've successfully updated the schema with ON DELETE CASCADE.
+                # To be safe, we'll do it explicitly here as well.
+                cur.execute("DELETE FROM policy_results WHERE host_id = ANY(%s)", (list(stale_ids),))
+                cur.execute("DELETE FROM host_labels WHERE host_id = ANY(%s)", (list(stale_ids),))
+                cur.execute("DELETE FROM fleet_hosts WHERE host_id = ANY(%s)", (list(stale_ids),))
+            print(f"  ✅ Removed {len(stale_ids)} stale hosts.")
 
         # 3. Host Labels (Heavy Operation - Only doing for a subset if possible)
         # For 100K hosts, iterating one by one is impossible via API.
