@@ -1,6 +1,9 @@
 services:
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: fleet-cis-dashboard-backend
     command: gunicorn --bind 0.0.0.0:5001 --workers 4 --threads 2 backend.app:app
     environment:
       - FLASK_APP=backend/app.py
@@ -17,7 +20,7 @@ services:
         condition: service_started
 
   sync:
-    image: fleet-cis-dashbaord-backend
+    image: fleet-cis-dashboard-backend
     command: python backend/sync_daemon.py
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/fleet_cis
@@ -28,17 +31,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - ./backend:/app/backend
     restart: always
 
   nginx:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
     ports:
       - "8081:80"
-    volumes:
-      - ./frontend:/usr/share/nginx/html
-      - ./nginx.conf:/etc/nginx/nginx.conf
     depends_on:
       - backend
 

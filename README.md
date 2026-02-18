@@ -4,25 +4,27 @@
 [![Docker](https://img.shields.io/badge/Docker-Enabled-blue?logo=docker)](https://www.docker.com/)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-blue?logo=python)](https://www.python.org/)
 
-A production-ready, real-time compliance monitoring dashboard for Fleet endpoints. This project provides deep visibility into **CIS Controls v8.1** benchmarks, **MITRE ATT&CK** mappings, and **D3FEND** defensive techniques.
+**Compliance doesn't have to be a black box.** 
+
+This dashboard transforms dry security benchmarks into a living, breathing view of your fleet's health. By connecting **CIS Controls v8.1** with **MITRE ATT&CK** and **D3FEND**, we help you move beyond "checking boxes" to actually understanding your defensive posture in real-time.
 
 ---
 
-## 📋 Prerequisites & Supported Policies
+## 📋 What you'll need
 
-> [!IMPORTANT]
-> The dashboard currently only supports the following CIS 8.1 policies from the [fleet_policies](https://github.com/karmine05/fleet_policies) repository:
-> - **macOS**: [CIS-8.1/macOS26](https://github.com/karmine05/fleet_policies/tree/main/CIS-8.1/macOS26)
-> - **Windows 11 (Intune)**: [CIS-8.1/win11/intune](https://github.com/karmine05/fleet_policies/tree/main/CIS-8.1/win11/intune)
+Before diving in, make sure your Fleet instance is running the supported policies. Currently, we've optimized this dashboard for these specific CIS 8.1 benchmarks from the [fleet_policies](https://github.com/karmine05/fleet_policies) repo:
+
+*   **macOS**: [CIS-8.1/macOS26](https://github.com/karmine05/fleet_policies/tree/main/CIS-8.1/macOS26)
+*   **Windows 11**: [CIS-8.1/win11/intune](https://github.com/karmine05/fleet_policies/tree/main/CIS-8.1/win11/intune)
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Get started in 5 minutes
 
-The entire stack is containerized for production parity and easy deployment.
+Everything is packed into neat containers so you can get up and running without wrestling with dependencies.
 
-### 1. Configure Credentials
-Open `docker-compose.yml` and set your Fleet credentials in the `backend` and `sync` services:
+### 1. Tell the app where your Fleet is
+Open `docker-compose.yml` and drop in your credentials under the `backend` and `sync` services:
 
 ```yaml
 environment:
@@ -30,75 +32,83 @@ environment:
   - FLEET_API_TOKEN=your-secret-token
 ```
 
-### 2. Launch the Stack
+### 2. Fire it up
+Run this in your terminal:
 ```bash
 docker-compose up -d --build
 ```
 
-### 3. Access the Dashboard
-Navigate to `http://localhost:8081` in your browser.
+### 3. Take a look!
+Head over to [http://localhost:8081](http://localhost:8081) and start exploring your data.
 
 ---
 
-## 🏗️ Architecture & Services
+## ✨ Features we love
 
-The dashboard runs as a multi-container application orchestrated by Docker Compose:
+### 🗺️ Context is King
+Standard audits tell you *what* failed. We tell you *why it matters*.
+*   **MITRE ATT&CK**: See exactly which adversary techniques you're leaving the door open for.
+*   **D3FEND**: Get actionable defensive techniques to close those gaps.
 
-| Service | Technology | Description |
+### 🏛️ Views for everyone
+*   **The Summary**: Fast stats for the daily pulse.
+*   **Security Architecture**: An interactive matrix that turns compliance into a map.
+*   **Compliance Audit**: The "to-do list" with clear remediation steps.
+*   **Executive Strategy**: Simplified views to help leaders make informed decisions.
+
+---
+
+## � Safe by Design
+
+We take the security of your security tools seriously. Under the hood, this project is built with hardening in mind:
+- **No Root Allowed**: The backend runs as a non-privileged `appuser`, so even in the worst-case scenario, the blast radius is strictly limited.
+- **Isolated Services**: Your frontend and backend live in separate "rooms" (containers), meaning they can't peek into each other's business.
+- **Nginx at the Helm**: We use a battle-tested Nginx server to handle your traffic, providing a much safer layer than standard development servers.
+
+---
+
+## ⚙️ How it works
+
+The dashboard is built on a simple, reliable stack:
+
+| Part | Tech | Role |
 | :--- | :--- | :--- |
-| **Frontend** | Nginx | Serves the static UI and proxies API requests. |
-| **Backend** | Flask / Gunicorn | Handles API requests and logic (Python 3.11). |
-| **Sync Daemon** | Python | Periodically ingests data from your Fleet instance. |
-| **Database** | PostgreSQL 16 | Persistent storage for compliance data and history. |
-| **Cache** | Redis 7 | Used for performance optimization and session management. |
+| **The Face** | Nginx | Serves the UI and keeps API requests secure. |
+| **The Brain** | Flask / Gunicorn | Handles logic and serves data (Python 3.11). |
+| **The Scout** | Sync Daemon | Quietly talks to Fleet every 15 minutes to fetch updates. |
+| **The Memory** | PostgreSQL 16 | Keeps a persistent record of your compliance history. |
+| **The Helper** | Redis 7 | Keeps things snappy with smart caching. |
 
 ---
 
-## 📊 Key Features
+## � Where everything lives
 
-### 🛡️ Framework Mapping
-Unlike standard compliance tools, this dashboard maps CIS Safeguards directly to defensive frameworks:
-- **MITRE ATT&CK**: Visualize defensive coverage against specific adversary tactics.
-- **D3FEND**: Identify technical countermeasures associated with each safeguard.
-- **Data Source**: Mappings are maintained in `backend/cis_to_d3fend.csv`.
-
-### 🏛️ Dashboard Views
-1.  **Summary**: High-level posture scores, KPI cards, and safeguard heatmaps.
-2.  **Security Architecture**: Interactive MITRE/D3FEND matrix showing compliant vs. non-compliant coverage.
-3.  **Compliance Audit**: Granular view of failing policies with remediation guidance.
-4.  **Executive Strategy**: CISO-level overview with roadmap projections and team leaderboards.
-
----
-
-## 📁 Project Structure
+If you're looking to tweak things, here's the lay of the land:
 
 ```text
 fleet-cis-dashboard/
-├── backend/            # Python API & Data Ingestion
-│   ├── app.py          # Flask API Entry Point
-│   ├── sync_daemon.py  # Periodic Sync Process
-│   ├── db.py           # Database Interface
-│   └── cis_to_d3fend.csv # Framework Mappings
-├── frontend/           # Web Interface
-│   ├── index.html      # Main Dashboard
-│   └── app.js          # UI Logic & Visualizations
-├── nginx.conf          # Nginx Reverse Proxy Config
-├── Dockerfile          # Backend/Sync Container Image
-└── docker-compose.yml  # System Orchestration
+├── backend/            # The Brains (API & Data Sync)
+│   ├── app.py          # Where the API starts
+│   ├── sync_daemon.py  # The background worker
+│   └── cis_to_d3fend.csv # The "Magic Map" between frameworks
+├── frontend/           # The Face (UI Logic)
+│   ├── index.html      # The main page
+│   └── app.js          # The charts and interactive bits
+├── Dockerfile.backend  # Instructions for building the backend
+├── Dockerfile.frontend # Instructions for building the frontend
+└── docker-compose.yml  # The orchestrator that ties it all together
 ```
 
 ---
 
-## 🛠️ Data Synchronization
+## 🔄 Keeping data fresh
 
-The **Sync Daemon** runs automatically every 15 minutes (configurable via `SYNC_INTERVAL_MINUTES`). 
-
-To monitor synchronization status:
+The **Sync Daemon** runs in the background every 15 minutes. If you want to see what it's doing, you can watch the logs:
 ```bash
 docker-compose logs -f sync
 ```
 
-To manually trigger an immediate sync:
+Need data **right now**? Force an immediate update with:
 ```bash
 docker-compose exec sync python backend/sync_fleet_data.py
 ```
@@ -107,4 +117,4 @@ docker-compose exec sync python backend/sync_fleet_data.py
 
 ## ⚖️ License
 
-Distributed under the MIT License. See `LICENSE` (if available) for more information.
+This project is open-source and available under the MIT License. Feel free to use, modify, and share!
