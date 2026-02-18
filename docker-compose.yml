@@ -1,35 +1,59 @@
-version: '3.8'
-
 services:
   backend:
     build: .
-    ports:
-      - "5000:5000"
+    command: gunicorn --bind 0.0.0.0:5001 --workers 4 --threads 2 backend.app:app
     environment:
-      - FLASK_ENV=development
       - FLASK_APP=backend/app.py
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/fleet_cis
+      - REDIS_URL=redis://redis:6379/0
+      # Hardcoded for debugging due to .env permission issues
+      - FLEET_URL=https://example[.]com
+      - FLEET_API_TOKEN=<add your token>
+      - PORT=5001
+      - PYTHONPATH=/app/backend
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - ./backend:/app/backend
-    command: python backend/app.py
 
-  frontend:
-    build: .
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./frontend:/app/frontend
-    command: sh -c "cd frontend && python -m http.server 8000"
-    depends_on:
-      - backend
-
-  # Optional: Nginx reverse proxy
   nginx:
     image: nginx:alpine
     ports:
-      - "80:80"
+      - "8081:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend:/usr/share/nginx/html
+      - ./nginx.conf:/etc/nginx/nginx.conf
     depends_on:
       - backend
-      - frontend
 
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=fleet_cis
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:

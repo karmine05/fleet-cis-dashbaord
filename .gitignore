@@ -8,10 +8,6 @@ secrets/
 *.db-shm
 *.db-wal
 
-# Process IDs
-.pids/
-*.pid
-
 # Logs
 *.log
 backend.log
@@ -34,6 +30,3 @@ dist/
 # System
 .DS_Store
 Thumbs.db
-
-# Agent
-.agent/

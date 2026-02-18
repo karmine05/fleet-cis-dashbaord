@@ -1,4 +1,7 @@
-const API_BASE = 'http://localhost:5001/api';
+// Dynamic API Base: Use relative path for Docker/Nginx, or explicit localhost:5001 for local dev (start.sh)
+const API_BASE = window.location.port === '8000'
+    ? 'http://localhost:5001/api'
+    : '/api';
 let currentFilters = {
     team: '',
     platform: '',
@@ -184,14 +187,11 @@ async function updateDashboard() {
     };
 
     try {
-        const [summary, heatmap, devicesResp, safeguards] = await Promise.all([
+        const [summary, heatmap, safeguards] = await Promise.all([
             fetch(`${API_BASE}/compliance-summary?${new URLSearchParams(currentFilters)}`).then(r => r.json()),
             fetch(`${API_BASE}/heatmap-data?${new URLSearchParams(currentFilters)}`).then(r => r.json()),
-            fetch(`${API_BASE}/devices?${new URLSearchParams(currentFilters)}`).then(r => r.json()),
             fetch(`${API_BASE}/safeguard-compliance?${new URLSearchParams(currentFilters)}`).then(r => r.json())
         ]);
-
-        const devices = devicesResp.devices || [];
 
         // Update All Specialized Pages (Async)
         await Promise.all([
@@ -375,79 +375,8 @@ function updateControlsStatus(data) {
     container.innerHTML = html;
 }
 
-// Update Devices Tab
-function updateDevicesTab(devices, summary) {
-    // Total devices
-    const totalEl = document.getElementById('total-devices');
-    const compliantEl = document.getElementById('compliant-devices');
-    const nonCompliantEl = document.getElementById('non-compliant-devices');
 
-    if (totalEl) totalEl.textContent = devices.length;
-    if (compliantEl) compliantEl.textContent = summary.compliant_devices || 0;
-    if (nonCompliantEl) nonCompliantEl.textContent = summary.non_compliant_devices || 0;
 
-    // Distribution by platform
-    const distData = {};
-    devices.forEach(d => {
-        const p = d.platform || 'Unknown';
-        distData[p] = (distData[p] || 0) + 1;
-    });
-
-    let distHtml = '';
-    Object.entries(distData).forEach(([platform, count]) => {
-        distHtml += `
-            <div class="distribution-item">
-                <span class="distribution-name">${platform}</span>
-                <span class="distribution-count">${count}</span>
-            </div>
-        `;
-    });
-    const distContainer = document.getElementById('device-distribution');
-    if (distContainer) distContainer.innerHTML = distHtml || '<p>No devices</p>';
-
-    // Health status
-    const healthData = { 'Healthy': 0, 'Critical': 0 };
-    devices.forEach(d => {
-        if (d.compliance_status === 'compliant') healthData['Healthy']++;
-        else healthData['Critical']++;
-    });
-
-    let healthHtml = '';
-    Object.entries(healthData).forEach(([status, count]) => {
-        if (count > 0) {
-            const cls = status === 'Healthy' ? 'healthy' : 'critical';
-            healthHtml += `
-                <div class="health-item ${cls}">
-                    <span class="health-name">${status}</span>
-                    <span class="health-count">${count} devices</span>
-                </div>
-            `;
-        }
-    });
-    const healthContainer = document.getElementById('device-health');
-    if (healthContainer) healthContainer.innerHTML = healthHtml || '<p>No data</p>';
-
-    // Recent scans
-    const sortedDevices = [...devices].sort((a, b) => new Date(b.last_seen) - new Date(a.last_seen));
-    let scansHtml = '';
-    sortedDevices.slice(0, 10).forEach(d => {
-        const diff = new Date() - new Date(d.last_seen);
-        const mins = Math.floor(diff / 60000);
-        const timeStr = mins < 60 ? `${mins} min ago` : `${Math.floor(mins / 60)} hr ago`;
-        scansHtml += `
-            <div class="scan-item">
-                <span class="scan-device">${d.hostname}</span>
-                <span class="scan-time">${timeStr}</span>
-            </div>
-        `;
-    });
-    const scansContainer = document.getElementById('recent-scans');
-    if (scansContainer) scansContainer.innerHTML = scansHtml || '<p>No scans</p>';
-
-    // Remediation progress (placeholder)
-    const remediationContainer = document.getElementById('remediation-progress');
-    if (remediationContainer) remediationContainer.innerHTML = '<p style="color:var(--text-secondary); text-align:center; padding:20px;">No remediation data available</p>';
-}
 
 // ===== NEW SPECIALIZED PAGES =====
 
@@ -538,9 +467,9 @@ async function populateArchitecturePage(heatmapData, summary) {
             gainsList.innerHTML = data.biggest_gains.map(g => `
                 <li>
                     <span class="change-name" title="${g.name}">${g.name}</span>
-                    <span class="change-value">${g.change}</span>
+                    <span class="change-value gain">${g.change}</span>
                 </li>
-            `).join('') || '<li><span class="change-name">No gains data</span></li>';
+            `).join('') || '<li><span class="change-name">No recent gains</span></li>';
         }
 
         // 7. Biggest Losses
@@ -549,9 +478,9 @@ async function populateArchitecturePage(heatmapData, summary) {
             lossesList.innerHTML = data.biggest_losses.map(l => `
                 <li>
                     <span class="change-name" title="${l.name}">${l.name}</span>
-                    <span class="change-value">${l.change}</span>
+                    <span class="change-value loss">${l.change}</span>
                 </li>
-            `).join('') || '<li><span class="change-name">No losses data</span></li>';
+            `).join('') || '<li><span class="change-name">No recent losses</span></li>';
         }
 
         // 8. Render MITRE ATT&CK Matrix
@@ -878,20 +807,7 @@ async function populateStrategyPage(summary, heatmapData) {
             </div>
         `).join('') || '<p style="color:var(--text-secondary);text-align:center;padding:20px;">All policies passing! 🎉</p>';
 
-        // 7. Framework Alignment
-        const frameworks = document.getElementById('framework-alignment');
-        const fws = data.frameworks || [];
-        frameworks.innerHTML = fws.map(fw => `
-            <div class="framework-card">
-                <div class="framework-header">
-                    <span class="framework-title">${fw.name}</span>
-                    <span class="framework-score">${fw.score}%</span>
-                </div>
-                <div class="framework-bar">
-                    <div class="framework-fill" style="width: ${fw.score}%"></div>
-                </div>
-            </div>
-        `).join('') || '<p style="color:var(--text-secondary);text-align:center;">No framework data</p>';
+
 
     } catch (e) {
         console.error('Strategy error:', e);

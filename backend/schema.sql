@@ -1,31 +1,35 @@
--- Fleet CIS Compliance Dashboard Schema
+-- Fleet CIS Compliance Dashboard Schema (PostgreSQL 16)
 
--- Teams (Synced from Fleet)
+-- Enable useful extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Teams
 CREATE TABLE IF NOT EXISTS fleet_teams (
-    team_id INTEGER PRIMARY KEY,
+    team_id BIGINT PRIMARY KEY,
     team_name TEXT NOT NULL,
     description TEXT,
-    created_at TIMESTAMP
+    created_at TIMESTAMPTZ
 );
 
--- Hosts (Synced from Fleet)
+-- Hosts
 CREATE TABLE IF NOT EXISTS fleet_hosts (
-    host_id INTEGER PRIMARY KEY,
+    host_id BIGINT PRIMARY KEY,
     hostname TEXT NOT NULL,
     uuid TEXT,
     platform TEXT,
     platform_version TEXT,
     osquery_version TEXT,
-    team_id INTEGER,
+    team_id BIGINT, -- Can be NULL for global
     team_name TEXT,
     online_status TEXT,
-    last_seen TIMESTAMP,
-    FOREIGN KEY (team_id) REFERENCES fleet_teams(team_id)
+    last_seen TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    FOREIGN KEY (team_id) REFERENCES fleet_teams(team_id) ON DELETE SET NULL
 );
 
--- CIS Policies (Synced from Fleet)
+-- CIS Policies
 CREATE TABLE IF NOT EXISTS cis_policies (
-    policy_id INTEGER PRIMARY KEY,
+    policy_id BIGINT PRIMARY KEY,
     policy_name TEXT NOT NULL,
     cis_control TEXT,
     description TEXT,
@@ -36,58 +40,78 @@ CREATE TABLE IF NOT EXISTS cis_policies (
     platform TEXT
 );
 
--- Policy Results (Time-series check results)
+-- Policy Results (Current State)
+-- Optimized for dashboard queries ("show me current status")
 CREATE TABLE IF NOT EXISTS policy_results (
-    result_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    policy_id INTEGER,
-    host_id INTEGER,
+    policy_id BIGINT,
+    host_id BIGINT,
     status TEXT CHECK(status IN ('pass', 'fail', 'error')),
-    checked_at TIMESTAMP,
+    checked_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (policy_id, host_id),
     FOREIGN KEY (policy_id) REFERENCES cis_policies(policy_id),
     FOREIGN KEY (host_id) REFERENCES fleet_hosts(host_id)
 );
 
+-- Policy Results History (Partitioned by Month)
+-- Stores historical changes for trend analysis/retention
+CREATE TABLE IF NOT EXISTS policy_results_history (
+    history_id BIGSERIAL,
+    policy_id BIGINT,
+    host_id BIGINT,
+    status TEXT,
+    checked_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (history_id, checked_at) -- Partition key must be part of PK
+) PARTITION BY RANGE (checked_at);
+
+-- Partitions for 2025-2026 (Monthly)
+CREATE TABLE IF NOT EXISTS policy_results_history_def PARTITION OF policy_results_history DEFAULT;
+CREATE TABLE IF NOT EXISTS policy_results_history_y2025m01 PARTITION OF policy_results_history FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
+CREATE TABLE IF NOT EXISTS policy_results_history_y2025m02 PARTITION OF policy_results_history FOR VALUES FROM ('2025-02-01') TO ('2025-03-01');
+CREATE TABLE IF NOT EXISTS policy_results_history_y2025m03 PARTITION OF policy_results_history FOR VALUES FROM ('2025-03-01') TO ('2025-04-01');
+CREATE TABLE IF NOT EXISTS policy_results_history_y2025m04 PARTITION OF policy_results_history FOR VALUES FROM ('2025-04-01') TO ('2025-05-01');
+CREATE TABLE IF NOT EXISTS policy_results_history_y2026m01 PARTITION OF policy_results_history FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');
+
 -- Compliance Snapshots (Daily aggregates)
 CREATE TABLE IF NOT EXISTS compliance_snapshots (
-    snapshot_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    snapshot_id BIGSERIAL PRIMARY KEY,
     snapshot_date DATE NOT NULL,
-    team_id INTEGER,
+    team_id BIGINT,
     compliance_score REAL,
     critical_failures INTEGER,
     passing_hosts INTEGER,
     FOREIGN KEY (team_id) REFERENCES fleet_teams(team_id)
 );
 
--- Labels (Synced from Fleet)
+-- Labels
 CREATE TABLE IF NOT EXISTS fleet_labels (
-    label_id INTEGER PRIMARY KEY,
+    label_id BIGINT PRIMARY KEY,
     label_name TEXT NOT NULL,
     label_type TEXT,
     description TEXT
 );
 
--- Host Labels (Junction table for many-to-many)
+-- Host Labels
 CREATE TABLE IF NOT EXISTS host_labels (
-    host_id INTEGER NOT NULL,
-    label_id INTEGER NOT NULL,
+    host_id BIGINT NOT NULL,
+    label_id BIGINT NOT NULL,
     PRIMARY KEY (host_id, label_id),
-    FOREIGN KEY (host_id) REFERENCES fleet_hosts(host_id),
-    FOREIGN KEY (label_id) REFERENCES fleet_labels(label_id)
+    FOREIGN KEY (host_id) REFERENCES fleet_hosts(host_id) ON DELETE CASCADE,
+    FOREIGN KEY (label_id) REFERENCES fleet_labels(label_id) ON DELETE CASCADE
 );
 
--- Configuration Settings (User-customizable weights and thresholds)
+-- Configuration Settings
 CREATE TABLE IF NOT EXISTS config_settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
     description TEXT,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Sync Metadata (Tracks sync lifecycle for differential sync)
+-- Sync Metadata
 CREATE TABLE IF NOT EXISTS sync_metadata (
-    sync_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    started_at TIMESTAMP NOT NULL,
-    completed_at TIMESTAMP,
+    sync_id BIGSERIAL PRIMARY KEY,
+    started_at TIMESTAMPTZ NOT NULL,
+    completed_at TIMESTAMPTZ,
     status TEXT CHECK(status IN ('running','success','failed')) DEFAULT 'running',
     hosts_changed INTEGER DEFAULT 0,
     policies_changed INTEGER DEFAULT 0,
@@ -96,16 +120,11 @@ CREATE TABLE IF NOT EXISTS sync_metadata (
     error_message TEXT
 );
 
--- Indexes for performance
+-- Indexes
 CREATE INDEX IF NOT EXISTS idx_hosts_team ON fleet_hosts(team_id);
+CREATE INDEX IF NOT EXISTS idx_hosts_updated ON fleet_hosts(updated_at);
 CREATE INDEX IF NOT EXISTS idx_results_host ON policy_results(host_id);
 CREATE INDEX IF NOT EXISTS idx_results_policy ON policy_results(policy_id);
 CREATE INDEX IF NOT EXISTS idx_results_status ON policy_results(status);
-CREATE INDEX IF NOT EXISTS idx_results_checked ON policy_results(checked_at);
 CREATE INDEX IF NOT EXISTS idx_host_labels_host ON host_labels(host_id);
-CREATE INDEX IF NOT EXISTS idx_host_labels_label ON host_labels(label_id);
-
--- Unique index for upsert support on policy_results
-CREATE UNIQUE INDEX IF NOT EXISTS idx_results_policy_host
-    ON policy_results(policy_id, host_id);
-
+CREATE INDEX IF NOT EXISTS idx_history_checked ON policy_results_history(checked_at);

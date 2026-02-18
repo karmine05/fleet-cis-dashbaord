@@ -1,24 +1,40 @@
 import os
-import sqlite3
+import psycopg2
+from psycopg2 import sql
+from dotenv import load_dotenv
+
+# Load env
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
 def reinit_db():
-    db_path = 'compliance.db'
+    db_url = os.environ.get("DATABASE_URL")
     schema_path = 'schema.sql'
     
-    print(f"🗑️  Starting database reinitialization for '{db_path}'...")
+    print(f"🗑️  Starting database reinitialization for PostgreSQL...")
     
-    # 1. Close connections if possible (not needed here but good practice)
-    # 2. Delete existing database file
-    if os.path.exists(db_path):
-        try:
-            os.remove(db_path)
-            print(f"✅ Deleted existing database: {db_path}")
-        except Exception as e:
-            print(f"❌ Error deleting database: {e}")
-            return
-    
-    # 3. Create fresh database
+    if not db_url:
+        print("❌ Error: DATABASE_URL not found in environment!")
+        return
+
     try:
+        # 1. Connect to default postgres to drop/recreate db if needed
+        # Or just drop all tables in the current db. Dropping tables is safer for permissions.
+        conn = psycopg2.connect(db_url)
+        conn.autocommit = True
+        cur = conn.cursor()
+        
+        print("   Cleaning up existing tables...")
+        cur.execute("""
+            DO $$ DECLARE
+                r RECORD;
+            BEGIN
+                FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+                    EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+                END LOOP;
+            END $$;
+        """)
+        
+        # 2. Apply schema
         if not os.path.exists(schema_path):
             print(f"❌ Error: Schema file '{schema_path}' not found!")
             return
@@ -26,10 +42,10 @@ def reinit_db():
         with open(schema_path, 'r') as f:
             schema_sql = f.read()
             
-        conn = sqlite3.connect(db_path)
-        conn.executescript(schema_sql)
+        print("   Applying schema...")
+        cur.execute(schema_sql)
         
-        # Insert default configuration values
+        # 3. Insert default configuration values
         print("📋 Inserting default configuration values...")
         defaults = [
             ('impact_high_threshold', '5', 'Fail count threshold for High impact classification'),
@@ -43,17 +59,16 @@ def reinit_db():
             ('framework_iso_multiplier', '0.82', 'ISO 27001 alignment multiplier')
         ]
         
-        cursor = conn.cursor()
-        cursor.executemany(
-            'INSERT OR IGNORE INTO config_settings (key, value, description) VALUES (?, ?, ?)',
+        psycopg2.extras.execute_values(
+            cur,
+            'INSERT INTO config_settings (key, value, description) VALUES %s ON CONFLICT DO NOTHING',
             defaults
         )
         
-        conn.commit()
+        cur.close()
         conn.close()
         
-        print(f"✨ Successfully reinitialized database from '{schema_path}'!")
-        print(f"📍 Database location: {os.path.abspath(db_path)}")
+        print(f"✨ Successfully reinitialized PostgreSQL database from '{schema_path}'!")
         
     except Exception as e:
         print(f"❌ Error during reinitialization: {e}")
@@ -62,7 +77,6 @@ if __name__ == "__main__":
     # Ensure we are in the backend directory
     current_dir = os.getcwd()
     if not current_dir.endswith('backend'):
-        # Try to find the backend dir
         if os.path.exists('backend'):
             os.chdir('backend')
         else:
