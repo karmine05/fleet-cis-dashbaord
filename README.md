@@ -8,6 +8,15 @@ A production-ready, real-time compliance monitoring dashboard for Fleet endpoint
 
 ---
 
+## 📋 Prerequisites & Supported Policies
+
+> [!IMPORTANT]
+> The dashboard currently only supports the following CIS 8.1 policies from the [fleet_policies](https://github.com/karmine05/fleet_policies) repository:
+> - **macOS**: [CIS-8.1/macOS26](https://github.com/karmine05/fleet_policies/tree/main/CIS-8.1/macOS26)
+> - **Windows 11 (Intune)**: [CIS-8.1/win11/intune](https://github.com/karmine05/fleet_policies/tree/main/CIS-8.1/win11/intune)
+
+---
+
 ## 🚀 Quick Start
 
 The entire stack is containerized for production parity and easy deployment.
