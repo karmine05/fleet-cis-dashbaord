@@ -2493,3 +2493,45 @@ body {
     border-color: var(--accent-cyan);
     color: var(--accent-cyan);
 }
+/* INFO ICONS & TOOLTIPS */
+.info-icon {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+    margin-left: 6px;
+    cursor: help;
+    transition: all 0.2s ease;
+    opacity: 0.6;
+}
+
+.info-icon:hover {
+    color: var(--accent-blue);
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.global-tooltip {
+    position: fixed;
+    z-index: 10000;
+    pointer-events: none;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    max-width: 250px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.global-tooltip.hidden {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+}
+
+.global-tooltip-content {
+    white-space: pre-wrap;
+    word-break: break-word;
+}

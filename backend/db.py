@@ -3,6 +3,9 @@ import time
 import psycopg2
 from psycopg2 import pool, extras
 from contextlib import contextmanager
+import logging
+
+logger = logging.getLogger(__name__)
 
 DB_POOL = None
 
@@ -18,10 +21,10 @@ def get_db_pool():
                     maxconn=20,
                     dsn=os.environ.get("DATABASE_URL")
                 )
-                print("✅ Database connection pool created.")
+                logger.info("Database connection pool created.")
                 break
             except psycopg2.OperationalError as e:
-                print(f"⚠️ Database connection failed, retrying in 2s... ({retries})")
+                logger.warning(f"Database connection failed, retrying in 2s... ({retries})")
                 time.sleep(2)
                 retries -= 1
         if DB_POOL is None:

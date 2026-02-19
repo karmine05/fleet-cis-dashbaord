@@ -15,6 +15,7 @@ async function init() {
     await updateDashboard();
     setupEventListeners();
     setupTooltip();
+    setupInfoTooltips();
     updateSyncStatus();
     setInterval(updateSyncStatus, 30000);
 }
@@ -25,7 +26,7 @@ function setupTooltip() {
     if (!tooltip || !content) return;
 
     document.addEventListener('mouseover', (e) => {
-        const cell = e.target.closest('.d3fend-heatmap-cell');
+        const cell = e.target.closest('.d3fend-heatmap-cell, .mitre-technique-cell');
         if (cell) {
             const text = cell.getAttribute('data-tooltip');
             if (!text) return;
@@ -36,7 +37,45 @@ function setupTooltip() {
             const rect = cell.getBoundingClientRect();
             const tooltipRect = tooltip.getBoundingClientRect();
 
-            // Initial positioning to get height
+            // Check if it's a mitre cell (tends to be larger/taller)
+            const isMitre = cell.classList.contains('mitre-technique-cell');
+            const topOffset = isMitre ? 5 : 10;
+
+            const top = rect.top - tooltipRect.height - topOffset;
+            const left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+
+            tooltip.style.top = `${top}px`;
+            tooltip.style.left = `${left}px`;
+        }
+    });
+
+    document.addEventListener('mouseout', (e) => {
+        if (e.target.closest('.d3fend-heatmap-cell, .mitre-technique-cell')) {
+            tooltip.classList.add('hidden');
+        }
+    });
+
+    // Also hide on scroll to prevent floating tooltips
+    window.addEventListener('scroll', () => tooltip.classList.add('hidden'), true);
+}
+
+function setupInfoTooltips() {
+    const tooltip = document.getElementById('global-tooltip');
+    const content = document.getElementById('global-tooltip-content');
+    if (!tooltip || !content) return;
+
+    document.addEventListener('mouseover', (e) => {
+        const icon = e.target.closest('.info-icon');
+        if (icon) {
+            const text = icon.getAttribute('data-help');
+            if (!text) return;
+
+            content.textContent = text;
+            tooltip.classList.remove('hidden');
+
+            const rect = icon.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+
             const top = rect.top - tooltipRect.height - 10;
             const left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
 
@@ -46,13 +85,10 @@ function setupTooltip() {
     });
 
     document.addEventListener('mouseout', (e) => {
-        if (e.target.closest('.d3fend-heatmap-cell')) {
+        if (e.target.closest('.info-icon')) {
             tooltip.classList.add('hidden');
         }
     });
-
-    // Also hide on scroll to prevent floating tooltips
-    window.addEventListener('scroll', () => tooltip.classList.add('hidden'), true);
 }
 
 // Setup event listeners

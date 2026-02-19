@@ -64,6 +64,13 @@ We take the security of your security tools seriously. Under the hood, this proj
 - **No Root Allowed**: The backend runs as a non-privileged `appuser`, so even in the worst-case scenario, the blast radius is strictly limited.
 - **Isolated Services**: Your frontend and backend live in separate "rooms" (containers), meaning they can't peek into each other's business.
 - **Nginx at the Helm**: We use a battle-tested Nginx server to handle your traffic, providing a much safer layer than standard development servers.
+- **Granular CORS Control**: The API is not a free-for-all. You can restrict which domains are allowed to talk to your backend.
+  - 💡 **Pro-tip**: Control allowed cross-origin domains by setting the `ALLOWED_ORIGINS` variable in your `docker-compose.yml`:
+    ```yaml
+    backend:
+      environment:
+        - ALLOWED_ORIGINS=https://dashboard.yourdomain.com,http://localhost:8081
+    ```
 
 ---
 

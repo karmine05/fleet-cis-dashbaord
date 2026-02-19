@@ -116,7 +116,9 @@
                 <section class="kpi-section">
                     <div class="kpi-card compliance-card">
                         <div class="kpi-header">
-                            <h3>Overall Compliance</h3>
+                            <h3>Overall Compliance <i class="fas fa-info-circle info-icon"
+                                    data-help="Overall fleet health: Combined pass rate of every check on every device."></i>
+                            </h3>
                             <i class="fas fa-shield-alt"></i>
                         </div>
                         <div class="kpi-value" id="compliance-rate">--%</div>
@@ -262,7 +264,9 @@
                     <div class="audit-kpi-row">
                         <div class="audit-kpi-card">
                             <div class="kpi-val" id="audit-compliance-rate">--%</div>
-                            <div class="kpi-lab">Compliance Rate</div>
+                            <div class="kpi-lab">Policy Completion Rate <i class="fas fa-info-circle info-icon"
+                                    data-help="Policy Remediation: Percentage of policies where 100% of devices pass."></i>
+                            </div>
                         </div>
                         <div class="audit-kpi-card">
                             <div class="kpi-val highlight-pass" id="audit-pass-count">--</div>
@@ -339,7 +343,9 @@
                             </svg>
                             <div class="gauge-value">
                                 <span id="posture-score-value">--</span>
-                                <span class="gauge-label">Security Posture</span>
+                                <span class="gauge-label">Security Posture (Depth) <i
+                                        class="fas fa-info-circle info-icon"
+                                        data-help="Fleet Health: Combined pass rate of every check on every device."></i></span>
                             </div>
                         </div>
                         <div class="maturity-indicator">
@@ -364,7 +370,8 @@
                         <div class="metric-icon coverage"><i class="fas fa-shield-halved"></i></div>
                         <div class="metric-content">
                             <span class="metric-value" id="coverage-value">--%</span>
-                            <span class="metric-label">Compliance Coverage</span>
+                            <span class="metric-label">Policy Coverage (Breadth) <i class="fas fa-info-circle info-icon"
+                                    data-help="Policy Coverage: Percentage of policies that have at least one passing device."></i></span>
                         </div>
                         <div class="metric-trend up"><i class="fas fa-arrow-trend-up"></i></div>
                     </div>

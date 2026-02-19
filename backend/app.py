@@ -8,9 +8,42 @@ from flask import Flask, jsonify, request, g
 from flask_cors import CORS
 import os
 import json
+import logging
 from datetime import datetime
 from dotenv import load_dotenv
-import psycopg2.extras
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("backend.log")
+    ]
+)
+logger = logging.getLogger(__name__)
+
+def error_response(message, status_code=500, error_details=None):
+    """Standardized error response and logging."""
+    log_msg = f"{message}"
+    if error_details:
+        log_msg += f" - Details: {error_details}"
+    logger.error(log_msg)
+    
+    response = {"error": message}
+    # Only include details in debug mode for security
+    if error_details and os.environ.get('FLASK_1_DEBUG', '0') == '1':
+        response["details"] = error_details
+    return jsonify(response), status_code
+
+# Valid configuration keys for validation
+VALID_CONFIG_KEYS = {
+    'risk_exposure_multiplier',
+    'security_debt_hours_per_issue',
+    'impact_threshold_high',
+    'effort_keywords_low',
+    'effort_keywords_high'
+}
 
 # Import new DB module
 import db
@@ -25,8 +58,9 @@ load_dotenv(os.path.join(basedir, '.env'))
 import random 
 
 app = Flask(__name__)
-# Enable CORS for all domains/routes
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+# Enable CORS for restricted domains
+allowed_origins = os.environ.get('ALLOWED_ORIGINS', os.environ.get('FRONTEND_URL', 'http://localhost:8081')).split(',')
+CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
 
 # Initialize DB Pool
 db.get_db_pool()
@@ -47,7 +81,7 @@ def load_mitre_data():
             with open(mitre_file, 'r') as f:
                 MITRE_DATA = json.load(f)
         except Exception as e:
-            print(f"Warning: Could not load MITRE Data: {e}")
+            logger.warning(f"Could not load MITRE Data: {e}")
 
 load_mitre_data()
 
@@ -79,7 +113,7 @@ def load_d3fend_mapping():
                         }
                         if d3fend_id: d3fend_techniques.add(d3fend_id)
         except Exception as e:
-            print(f"Warning: Could not load D3FEND: {e}")
+            logger.warning(f"Could not load D3FEND mapping: {e}")
     return mapping, sorted(list(d3fend_techniques))
 
 D3FEND_MAPPING, D3FEND_TECHNIQUES = load_d3fend_mapping()
@@ -102,7 +136,7 @@ def get_config(key, default):
                         return val
             return default
     except Exception as e:
-        print(f"Config error for {key}: {e}")
+        logger.error(f"Config error for {key}: {e}")
         return default
 
 # --- Helper Query Builder ---
@@ -219,10 +253,11 @@ def get_sync_status():
                 "error": row['error_message']
             })
     except Exception as e:
+        logger.error(f"Sync status fetch failed: {str(e)}")
         return jsonify({
             "last_sync": None,
             "status": "error",
-            "message": str(e)
+            "message": "Internal server error"
         }), 500
 
 @app.route('/api/config', methods=['GET'])
@@ -247,14 +282,27 @@ def get_all_config():
                 }
             return jsonify(config)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return error_response("Failed to fetch configuration", 500, str(e))
 
 @app.route('/api/config', methods=['PUT'])
 def update_config():
     try:
         updates = request.json
         if not updates:
-            return jsonify({"error": "No configuration provided"}), 400
+            return error_response("No configuration provided", 400)
+        
+        # Validation for keys
+        invalid_keys = [k for k in updates if k not in VALID_CONFIG_KEYS]
+        if invalid_keys:
+            return error_response(f"Invalid configuration keys: {', '.join(invalid_keys)}", 400)
+
+        # Basic type validation for numeric fields
+        for key, value in updates.items():
+            if key in ['risk_exposure_multiplier', 'security_debt_hours_per_issue', 'impact_threshold_high']:
+                try:
+                    float(value)
+                except (ValueError, TypeError):
+                    return error_response(f"Value for {key} must be numeric", 400)
         
         with db.get_db_cursor(commit=True) as cur:
             updated_count = 0
@@ -265,11 +313,12 @@ def update_config():
                     VALUES (%s, %s, NOW())
                     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
                 """, (key, val_str))
-                updated_count += 1 # Postgres executes returns None usually, but we assume success
+                updated_count += 1 
             
+            logger.info(f"Updated {updated_count} config settings: {list(updates.keys())}")
             return jsonify({"success": True, "updated": updated_count})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return error_response("Failed to update configuration", 500, str(e))
 
 @app.route('/api/teams', methods=['GET'])
 def get_teams():
