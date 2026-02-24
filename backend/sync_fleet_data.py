@@ -12,19 +12,25 @@ from psycopg2 import extras
 import db
 
 import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Load environment variables
 basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 load_dotenv(os.path.join(basedir, '.env'))
-
 
 # Configuration
 FLEET_URL = os.environ.get("FLEET_URL", "https://fleet.example.com")
 FLEET_TOKEN = os.environ.get("FLEET_API_TOKEN", "")
 # Default to 10 workers for API calls
 MAX_WORKERS = int(os.environ.get("SYNC_MAX_WORKERS", "10"))
-HOSTS_PER_PAGE = int(os.environ.get("SYNC_HOSTS_PER_PAGE", "100")) 
+HOSTS_PER_PAGE = int(os.environ.get("SYNC_HOSTS_PER_PAGE", "100"))
+
+# SSL Verification Strategy
+ssl_verify_env = os.environ.get("FLEET_SSL_VERIFY", "false").lower()
+FLEET_SSL_VERIFY = ssl_verify_env in ('true', '1', 'yes')
+
+if not FLEET_SSL_VERIFY:
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 
 # CIS control regex
 import re
@@ -56,7 +62,7 @@ def fetch_hosts_generator():
     while True:
         try:
             url = f"{FLEET_URL}/api/v1/fleet/hosts?per_page={HOSTS_PER_PAGE}&page={page}"
-            response = requests.get(url, headers=get_fleet_headers(), timeout=30, verify=False)
+            response = requests.get(url, headers=get_fleet_headers(), timeout=30, verify=FLEET_SSL_VERIFY)
             response.raise_for_status()
             hosts = response.json().get("hosts", [])
             if not hosts:
@@ -71,7 +77,7 @@ def fetch_teams():
     if not FLEET_TOKEN: return []
     try:
         url = f"{FLEET_URL}/api/v1/fleet/teams"
-        response = requests.get(url, headers=get_fleet_headers(), timeout=10, verify=False)
+        response = requests.get(url, headers=get_fleet_headers(), timeout=10, verify=FLEET_SSL_VERIFY)
         return response.json().get("teams", [])
     except Exception: return []
 
@@ -79,14 +85,14 @@ def fetch_labels():
     if not FLEET_TOKEN: return []
     try:
         url = f"{FLEET_URL}/api/v1/fleet/labels"
-        response = requests.get(url, headers=get_fleet_headers(), timeout=10, verify=False)
+        response = requests.get(url, headers=get_fleet_headers(), timeout=10, verify=FLEET_SSL_VERIFY)
         return response.json().get("labels", [])
     except Exception: return []
 
 def fetch_host_details(host_id):
     try:
         url = f"{FLEET_URL}/api/v1/fleet/hosts/{host_id}"
-        response = requests.get(url, headers=get_fleet_headers(), timeout=10, verify=False)
+        response = requests.get(url, headers=get_fleet_headers(), timeout=10, verify=FLEET_SSL_VERIFY)
         return response.json().get("host", {})
     except Exception: return None
 
@@ -96,22 +102,33 @@ def fetch_policies(teams):
     
     try:
         # Global
-        url = f"{FLEET_URL}/api/v1/fleet/policies"
-        response = requests.get(url, headers=get_fleet_headers(), timeout=10, verify=False)
-        for p in response.json().get("policies", []):
+        url = f"{FLEET_URL}/api/latest/fleet/policies"
+        response = requests.get(url, headers=get_fleet_headers(), timeout=10, verify=FLEET_SSL_VERIFY)
+        gl_pols = response.json().get("policies", [])
+        print(f"Global policies fetched: {len(gl_pols)}")
+        for p in gl_pols:
             p['team_id'] = None
             all_policies[p['id']] = p
-    except: pass
+    except Exception as e: 
+        print(f"Error fetching global policies: {e}")
     
     for team in teams:
         try:
-            url = f"{FLEET_URL}/api/v1/fleet/teams/{team['id']}/policies"
-            response = requests.get(url, headers=get_fleet_headers(), timeout=10, verify=False)
-            for p in response.json().get("policies", []):
-                p['team_id'] = team['id']
-                all_policies[p['id']] = p
-        except: pass
+            url = f"{FLEET_URL}/api/latest/fleet/teams/{team['id']}/policies"
+            response = requests.get(url, headers=get_fleet_headers(), timeout=10, verify=FLEET_SSL_VERIFY)
+            data = response.json()
+            team_policies = data.get("policies", []) + data.get("inherited_policies", [])
+            print(f"Team {team['id']} policies fetched: {len(team_policies)} (pol: {len(data.get('policies',[]))}, inh: {len(data.get('inherited_policies',[]))})")
+            for p in team_policies:
+                if p['id'] not in all_policies:
+                    p['team_id'] = team['id']
+                    all_policies[p['id']] = p
+                else:
+                    pass
+        except Exception as e:
+            print(f"Error fetching team {team['id']} policies: {e}")
         
+    print(f"Total unique policies returned: {len(all_policies)}")
     return list(all_policies.values())
 
 def fetch_policy_hosts(policy_id, status):
@@ -119,7 +136,7 @@ def fetch_policy_hosts(policy_id, status):
     try:
         response_type = "passing" if status == "pass" else "failing"
         url = f"{FLEET_URL}/api/v1/fleet/hosts?policy_id={policy_id}&policy_response={response_type}"
-        response = requests.get(url, headers=get_fleet_headers(), timeout=30, verify=False)
+        response = requests.get(url, headers=get_fleet_headers(), timeout=30, verify=FLEET_SSL_VERIFY)
         hosts = response.json().get("hosts", [])
         return [(policy_id, h['id'], status, datetime.now()) for h in hosts]
     except Exception: return []

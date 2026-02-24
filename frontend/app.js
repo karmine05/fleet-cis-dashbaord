@@ -258,7 +258,7 @@ async function updateDashboard() {
 function showError(message) {
     const banner = document.createElement('div');
     banner.style.cssText = 'background: #ff3333; color: white; padding: 10px; border-radius: 4px; font-weight: bold; position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 9999; text-align: center;';
-    banner.innerHTML = `⚠️ Error: ${message}`;
+    banner.textContent = `⚠️ Error: ${message}`;
     document.body.prepend(banner);
     setTimeout(() => banner.remove(), 8000);
 }
@@ -354,7 +354,7 @@ function updateHeatmap(data) {
     });
 
     html += '</div>';
-    container.innerHTML = html;
+    container.innerHTML = DOMPurify.sanitize(html);
 }
 
 // Update violations list
@@ -380,7 +380,7 @@ function updateViolations(data) {
             </div>
         `;
     });
-    container.innerHTML = html;
+    container.innerHTML = DOMPurify.sanitize(html);
 }
 
 // Update controls status
@@ -408,7 +408,7 @@ function updateControlsStatus(data) {
             </div>
         `;
     });
-    container.innerHTML = html;
+    container.innerHTML = DOMPurify.sanitize(html);
 }
 
 
@@ -444,7 +444,7 @@ async function populateArchitecturePage(heatmapData, summary) {
         const miniBars = document.getElementById('arch-mini-bars');
         if (miniBars) {
             const barHeights = [12, 14, 11, 16, 15, 18];
-            miniBars.innerHTML = barHeights.map(h => `<div class="bar" style="height: ${h}px;"></div>`).join('');
+            miniBars.innerHTML = DOMPurify.sanitize(barHeights.map(h => `<div class="bar" style="height: ${h}px;"></div>`).join(''));
         }
 
         // 3. Compliance by MITRE Tactic bars
@@ -472,51 +472,51 @@ async function populateArchitecturePage(heatmapData, summary) {
                         <span class="rate" style="color: ${color};">${rate}%</span>
                     </div>`;
             });
-            tacticBarsContainer.innerHTML = barsHtml;
+            tacticBarsContainer.innerHTML = DOMPurify.sanitize(barsHtml);
         }
 
         // 4. Top 5 Weakest TTPs
         const weakestList = document.getElementById('top-weakest-list');
         if (weakestList && data.top_5_weakest) {
-            weakestList.innerHTML = data.top_5_weakest.map(t => `
+            weakestList.innerHTML = DOMPurify.sanitize(data.top_5_weakest.map(t => `
                 <li>
                     <span class="ttp-name" title="${t.name}">${t.name}</span>
                     <span class="ttp-rate">${t.rate}%</span>
                 </li>
-            `).join('');
+            `).join(''));
         }
 
         // 5. Top 3 Strongest TTPs
         const strongestList = document.getElementById('top-strongest-list');
         if (strongestList && data.top_3_strongest) {
-            strongestList.innerHTML = data.top_3_strongest.map(t => `
+            strongestList.innerHTML = DOMPurify.sanitize(data.top_3_strongest.map(t => `
                 <li>
                     <span class="ttp-name" title="${t.name}">${t.name}</span>
                     <span class="ttp-rate">${t.rate}%</span>
                 </li>
-            `).join('');
+            `).join(''));
         }
 
         // 6. Biggest Gains
         const gainsList = document.getElementById('gains-list');
         if (gainsList && data.biggest_gains) {
-            gainsList.innerHTML = data.biggest_gains.map(g => `
+            gainsList.innerHTML = DOMPurify.sanitize(data.biggest_gains.map(g => `
                 <li>
                     <span class="change-name" title="${g.name}">${g.name}</span>
                     <span class="change-value gain">${g.change}</span>
                 </li>
-            `).join('') || '<li><span class="change-name">No recent gains</span></li>';
+            `).join('')) || '<li><span class="change-name">No recent gains</span></li>';
         }
 
         // 7. Biggest Losses
         const lossesList = document.getElementById('losses-list');
         if (lossesList && data.biggest_losses) {
-            lossesList.innerHTML = data.biggest_losses.map(l => `
+            lossesList.innerHTML = DOMPurify.sanitize(data.biggest_losses.map(l => `
                 <li>
                     <span class="change-name" title="${l.name}">${l.name}</span>
                     <span class="change-value loss">${l.change}</span>
                 </li>
-            `).join('') || '<li><span class="change-name">No recent losses</span></li>';
+            `).join('')) || '<li><span class="change-name">No recent losses</span></li>';
         }
 
         // 8. Render MITRE ATT&CK Matrix
@@ -566,7 +566,7 @@ function renderMitreMatrix(matrixData) {
         html += '</div>';
     });
 
-    container.innerHTML = html;
+    container.innerHTML = DOMPurify.sanitize(html);
 
     // Attach tooltip handlers
     container.querySelectorAll('.mitre-technique-cell').forEach(cell => {
@@ -666,11 +666,11 @@ function updateAuditUI() {
         return;
     }
 
-    listContainer.innerHTML = filtered.map(s => `
+    listContainer.innerHTML = DOMPurify.sanitize(filtered.map(s => `
         <div class="audit-policy-item" data-id="${s.safeguard_id}">
             ${s.name}
         </div>
-    `).join('');
+    `).join(''));
 
     // Attach click handlers
     listContainer.querySelectorAll('.audit-policy-item').forEach(item => {
@@ -809,7 +809,7 @@ async function populateStrategyPage(summary, heatmapData) {
         // 5. Team Leaderboard
         const leaderboard = document.getElementById('team-leaderboard');
         const teams = data.team_leaderboard || [];
-        leaderboard.innerHTML = teams.map((team, i) => {
+        leaderboard.innerHTML = DOMPurify.sanitize(teams.map((team, i) => {
             const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
             const trendIcon = team.trend === 'up' ? '↑' : team.trend === 'down' ? '↓' : '→';
             const trendText = team.trend !== 'stable' ? `${trendIcon} ${team.delta}%` : '→';
@@ -821,12 +821,12 @@ async function populateStrategyPage(summary, heatmapData) {
                     <div class="leaderboard-trend ${team.trend}">${trendText}</div>
                 </div>
             `;
-        }).join('') || '<p style="color:var(--text-secondary);text-align:center;">No team data</p>';
+        }).join('')) || '<p style="color:var(--text-secondary);text-align:center;">No team data</p>';
 
         // 6. Priority Actions
         const priorities = document.getElementById('priority-actions');
         const prios = data.priorities || [];
-        priorities.innerHTML = prios.map((p, i) => `
+        priorities.innerHTML = DOMPurify.sanitize(prios.map((p, i) => `
             <div class="priority-item">
                 <div class="priority-number">${i + 1}</div>
                 <div class="priority-content">
@@ -841,7 +841,7 @@ async function populateStrategyPage(summary, heatmapData) {
                     <span class="priority-badge effort-${p.effort.toLowerCase()}">${p.effort} Effort</span>
                 </div>
             </div>
-        `).join('') || '<p style="color:var(--text-secondary);text-align:center;padding:20px;">All policies passing! 🎉</p>';
+        `).join('')) || '<p style="color:var(--text-secondary);text-align:center;padding:20px;">All policies passing! 🎉</p>';
 
 
 
@@ -884,7 +884,7 @@ function renderD3FENDMatrix(containerId, data) {
         html += `</div></div>`;
     });
     html += '</div>';
-    container.innerHTML = html;
+    container.innerHTML = DOMPurify.sanitize(html);
 }
 
 // ===== SETTINGS PAGE =====
@@ -989,7 +989,7 @@ function resetConfigSettings() {
 function showSuccess(message) {
     const banner = document.createElement('div');
     banner.style.cssText = 'background: #10B981; color: white; padding: 12px 20px; border-radius: 8px; font-weight: 600; position: fixed; top: 20px; right: 20px; z-index: 9999; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);';
-    banner.innerHTML = `✅ ${message}`;
+    banner.textContent = `✅ ${message}`;
     document.body.appendChild(banner);
     setTimeout(() => banner.remove(), 4000);
 }

@@ -40,9 +40,13 @@ def error_response(message, status_code=500, error_details=None):
 VALID_CONFIG_KEYS = {
     'risk_exposure_multiplier',
     'security_debt_hours_per_issue',
-    'impact_threshold_high',
-    'effort_keywords_low',
-    'effort_keywords_high'
+    'impact_high_threshold',
+    'impact_medium_threshold',
+    'effort_low_keywords',
+    'effort_high_keywords',
+    'framework_cis_multiplier',
+    'framework_nist_multiplier',
+    'framework_iso_multiplier'
 }
 
 # Import new DB module
@@ -297,8 +301,17 @@ def update_config():
             return error_response(f"Invalid configuration keys: {', '.join(invalid_keys)}", 400)
 
         # Basic type validation for numeric fields
+        numeric_keys = [
+            'risk_exposure_multiplier', 
+            'security_debt_hours_per_issue', 
+            'impact_high_threshold', 
+            'impact_medium_threshold',
+            'framework_cis_multiplier',
+            'framework_nist_multiplier',
+            'framework_iso_multiplier'
+        ]
         for key, value in updates.items():
-            if key in ['risk_exposure_multiplier', 'security_debt_hours_per_issue', 'impact_threshold_high']:
+            if key in numeric_keys:
                 try:
                     float(value)
                 except (ValueError, TypeError):
@@ -661,11 +674,18 @@ def get_strategy():
         """, params)
         
         priorities = []
-        impact_threshold = get_config('impact_threshold_high', 5)
+        impact_threshold = get_config('impact_high_threshold', 5)
         
         # Effort Configuration
-        low_keywords = [k.strip().lower() for k in get_config('effort_keywords_low', 'Ensure,Set').split(',')]
-        high_keywords = [k.strip().lower() for k in get_config('effort_keywords_high', 'Manual,Review').split(',')]
+        low_kw = get_config('effort_low_keywords', ['Ensure', 'Set'])
+        high_kw = get_config('effort_high_keywords', ['Manual', 'Review'])
+        
+        # Ensure they are lists (in case of misconfiguration)
+        if isinstance(low_kw, str): low_kw = [k.strip() for k in low_kw.split(',')]
+        if isinstance(high_kw, str): high_kw = [k.strip() for k in high_kw.split(',')]
+            
+        low_keywords = [k.lower() for k in low_kw if k]
+        high_keywords = [k.lower() for k in high_kw if k]
 
         for row in cur.fetchall():
             fail_count = row['fail_count']
