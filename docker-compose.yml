@@ -20,9 +20,6 @@ services:
         condition: service_started
 
   sync:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
     image: fleet-cis-dashboard-backend
     command: python backend/sync_daemon.py
     environment:
@@ -34,6 +31,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      backend:
+        condition: service_started
     restart: always
 
   nginx:
