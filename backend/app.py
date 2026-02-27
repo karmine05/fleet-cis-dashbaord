@@ -89,38 +89,82 @@ def load_mitre_data():
 
 load_mitre_data()
 
+def _load_csv_into_dict(filepath, techniques_set):
+    """Load a D3FEND CSV file into a dict keyed by cis_id."""
+    result = {}
+    import csv
+    with open(filepath, 'r') as f:
+        reader = csv.DictReader(f, skipinitialspace=True)
+        if reader.fieldnames:
+            reader.fieldnames = [name.strip() for name in reader.fieldnames]
+        for row in reader:
+            row = {k.strip(): v.strip() for k, v in row.items()}
+            cis_id = row.get('cis_id', '').strip()
+            if cis_id:
+                result[cis_id] = {
+                    'd3fend_id':        row.get('d3fend_id', '').strip(),
+                    'd3fend_technique':  row.get('d3fend_technique', '').strip(),
+                    'd3fend_tactic':     row.get('d3fend_tactic', '').strip(),
+                    'attack_id':         row.get('attack_id', '').strip(),
+                }
+                if result[cis_id]['d3fend_id']:
+                    techniques_set.add(result[cis_id]['d3fend_id'])
+    return result
+
 def load_d3fend_mapping():
-    mapping = {}
-    d3fend_techniques = set()
-    mapping_file = os.path.join(os.path.dirname(__file__), 'cis_to_d3fend.csv')
-    if os.path.exists(mapping_file):
+    """
+    Load per-platform D3FEND mapping files.
+
+    Discovers all cis_to_d3fend_<platform>.csv files in the backend directory
+    and loads each into its own independent dict. Each file is the authoritative
+    source for its platform — there is no shared default that bleeds across
+    platforms. Maintainers edit only the relevant platform file.
+
+    Returns:
+        mapping_by_platform: {'darwin': {...}, 'linux': {...}, 'windows': {...}, ...}
+        d3fend_techniques:    sorted list of all unique D3FEND IDs across all files
+    """
+    techniques = set()
+    base_dir = os.path.dirname(__file__)
+    mapping_by_platform = {}
+
+    import glob
+    platform_files = glob.glob(os.path.join(base_dir, 'cis_to_d3fend_*.csv'))
+    if not platform_files:
+        logger.warning("No per-platform D3FEND mapping files found (cis_to_d3fend_<platform>.csv)")
+
+    for filepath in platform_files:
+        platform_name = os.path.basename(filepath).replace('cis_to_d3fend_', '').replace('.csv', '')
         try:
-            import csv
-            with open(mapping_file, 'r') as f:
-                reader = csv.DictReader(f, skipinitialspace=True)
-                if reader.fieldnames:
-                    reader.fieldnames = [name.strip() for name in reader.fieldnames]
-                for row in reader:
-                    row = {k.strip(): v.strip() for k, v in row.items()}
-                    cis_id = row.get('cis_id', '').strip()
-                    d3fend_id = row.get('d3fend_id', '').strip()
-                    d3fend_technique = row.get('d3fend_technique', '').strip()
-                    d3fend_tactic = row.get('d3fend_tactic', '').strip()
-                    attack_id = row.get('attack_id', '').strip()
-                    
-                    if cis_id:
-                        mapping[cis_id] = {
-                            'd3fend_id': d3fend_id, 
-                            'd3fend_technique': d3fend_technique,
-                            'd3fend_tactic': d3fend_tactic,
-                            'attack_id': attack_id
-                        }
-                        if d3fend_id: d3fend_techniques.add(d3fend_id)
+            mapping_by_platform[platform_name] = _load_csv_into_dict(filepath, techniques)
+            logger.info(f"Loaded D3FEND mapping: {len(mapping_by_platform[platform_name])} entries for platform='{platform_name}'")
         except Exception as e:
-            logger.warning(f"Could not load D3FEND mapping: {e}")
-    return mapping, sorted(list(d3fend_techniques))
+            logger.warning(f"Could not load D3FEND mapping for platform '{platform_name}': {e}")
+
+    return mapping_by_platform, sorted(list(techniques))
 
 D3FEND_MAPPING, D3FEND_TECHNIQUES = load_d3fend_mapping()
+
+
+def get_d3fend_entry(cis_id, platform=''):
+    """
+    Look up a CIS ID in the platform-specific D3FEND mapping.
+
+    When platform is known (e.g. 'darwin', 'linux', 'windows'), only that
+    platform's file is consulted — no cross-platform bleed.
+
+    When platform is unknown or not provided, search all loaded platform dicts
+    and return the first match found (deterministic: alphabetical platform order).
+    """
+    if platform and platform in D3FEND_MAPPING:
+        return D3FEND_MAPPING[platform].get(cis_id, {})
+
+    # No platform specified: search all platforms in sorted order
+    for plat in sorted(D3FEND_MAPPING.keys()):
+        entry = D3FEND_MAPPING[plat].get(cis_id)
+        if entry:
+            return entry
+    return {}
 
 # --- Configuration Management ---
 def get_config(key, default):
@@ -567,11 +611,12 @@ def get_heatmap_data():
             if row['status'] == 'pass':
                 cis_stats[cis_id]['pass'] += row['count']
 
+        platform = request.args.get('platform', '')
         heatmap_data = []
         for cis_id in sorted(cis_stats.keys()):
             stats = cis_stats[cis_id]
-            mapping = D3FEND_MAPPING.get(cis_id, {})
-            
+            mapping = get_d3fend_entry(cis_id, platform)
+
             heatmap_data.append({
                 "cis_id": cis_id,
                 "pass": stats['pass'],
@@ -724,7 +769,8 @@ def get_strategy():
 @app.route('/api/architecture', methods=['GET'])
 def get_architecture():
     h_query, params = get_filtered_hosts_subquery()
-    
+    platform = request.args.get('platform', '')
+
     with db.get_db_cursor() as cur:
         # Get all policy results for these hosts
         cur.execute(f"""
@@ -735,7 +781,7 @@ def get_architecture():
             GROUP BY p.cis_control, pr.status
         """, params)
         rows = cur.fetchall()
-        
+
         # Aggregation Structures
         cis_stats = {} # cis_id -> {pass: 0, total: 0}
         mitre_stats = {} # attack_id -> {pass: 0, total: 0}
@@ -748,10 +794,10 @@ def get_architecture():
         for row in rows:
             cis_id = row['cis_control']
             if not cis_id: continue
-            
+
             count = row['count']
             is_pass = (row['status'] == 'pass')
-            
+
             # Global Stats
             total_checks += count
             if is_pass: total_passed += count
@@ -760,10 +806,10 @@ def get_architecture():
             if cis_id not in cis_stats: cis_stats[cis_id] = {'pass': 0, 'total': 0}
             cis_stats[cis_id]['total'] += count
             if is_pass: cis_stats[cis_id]['pass'] += count
-            
+
             # Map to Frameworks
-            if cis_id in D3FEND_MAPPING:
-                mapping = D3FEND_MAPPING[cis_id]
+            mapping = get_d3fend_entry(cis_id, platform)
+            if mapping:
                 
                 # 1. D3FEND Technique Stats (for Weakest/Strongest)
                 d3_tech = mapping.get('d3fend_technique')

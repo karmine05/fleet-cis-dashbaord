@@ -50,5 +50,37 @@
     "T1589": {
         "name": "Gather Victim Identity Information",
         "tactic": "Reconnaissance"
+    },
+    "T1070": {
+        "name": "Indicator Removal on Host",
+        "tactic": "Defense Evasion"
+    },
+    "T1110": {
+        "name": "Brute Force",
+        "tactic": "Credential Access"
+    },
+    "T1190": {
+        "name": "Exploit Public-Facing Application",
+        "tactic": "Initial Access"
+    },
+    "T1552": {
+        "name": "Unsecured Credentials",
+        "tactic": "Credential Access"
+    },
+    "T1134": {
+        "name": "Access Token Manipulation",
+        "tactic": "Privilege Escalation"
+    },
+    "T1548": {
+        "name": "Abuse Elevation Control Mechanism",
+        "tactic": "Privilege Escalation"
+    },
+    "T1059": {
+        "name": "Command and Scripting Interpreter",
+        "tactic": "Execution"
+    },
+    "T1595": {
+        "name": "Active Scanning",
+        "tactic": "Reconnaissance"
     }
 }
