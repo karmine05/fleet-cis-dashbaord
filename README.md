@@ -14,7 +14,7 @@ This dashboard transforms dry security benchmarks into a living, breathing view 
 
 Before diving in, make sure your Fleet instance is running the supported policies. Currently, we've optimized this dashboard for these specific CIS 8.1 benchmarks from the [fleet_policies](https://github.com/karmine05/fleet_policies) repo:
 
-*   **macOS**: [CIS-8.1/macOS26](https://github.com/karmine05/fleet_policies/tree/main/CIS-8.1/macOS26)
+*   **macOS 26.x**: [CIS-8.1/macOS26](https://github.com/karmine05/fleet_policies/tree/main/CIS-8.1/macOS26)
 *   **Windows 11**: [CIS-8.1/win11/intune](https://github.com/karmine05/fleet_policies/tree/main/CIS-8.1/win11/intune)
 *   **ubuntu 24.04**: [CIS-8.1/ubuntu24](https://github.com/karmine05/fleet_policies/blob/main/CIS-8.1/ubuntu24/24.04)
 
