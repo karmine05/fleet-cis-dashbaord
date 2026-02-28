@@ -16,7 +16,7 @@ Before diving in, make sure your Fleet instance is running the supported policie
 
 *   **macOS**: [CIS-8.1/macOS26](https://github.com/karmine05/fleet_policies/tree/main/CIS-8.1/macOS26)
 *   **Windows 11**: [CIS-8.1/win11/intune](https://github.com/karmine05/fleet_policies/tree/main/CIS-8.1/win11/intune)
-*   **ubuntu 24.04 [CIS-8.1/ubuntu24](https://github.com/karmine05/fleet_policies/blob/main/CIS-8.1/ubuntu24/24.04)
+*   **ubuntu 24.04**: [CIS-8.1/ubuntu24](https://github.com/karmine05/fleet_policies/blob/main/CIS-8.1/ubuntu24/24.04)
 
 ---
 
