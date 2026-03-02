@@ -30,3 +30,8 @@ dist/
 # System
 .DS_Store
 Thumbs.db
+CLAUDE.md
+.serena/
+.gitignore
+.gitignore
+docs/
