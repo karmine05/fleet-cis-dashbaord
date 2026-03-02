@@ -115,6 +115,8 @@ function setupEventListeners() {
     document.getElementById('apply-filters').addEventListener('click', updateDashboard);
     document.getElementById('reset-filters').addEventListener('click', resetFilters);
     document.getElementById('platform-filter').addEventListener('change', updateOSVersions);
+    document.getElementById('team-filter').addEventListener('change', updateDashboard);
+    document.getElementById('label-filter').addEventListener('change', updateDashboard);
 }
 
 // Switch pages
@@ -191,13 +193,17 @@ async function populateFilters() {
 // Update OS versions based on platform
 async function updateOSVersions() {
     const platform = document.getElementById('platform-filter').value;
+    const label = document.getElementById('label-filter').value;
+
     if (!platform) {
         document.getElementById('os-version-filter').innerHTML = '<option value="">All Versions</option>';
         return;
     }
 
     try {
-        const resp = await fetch(`${API_BASE}/os-versions`).then(r => r.json());
+        const params = new URLSearchParams();
+        if (label) params.append('label', label);
+        const resp = await fetch(`${API_BASE}/os-versions?${params}`).then(r => r.json());
         const allVersions = resp.os_versions || {};
         const versions = allVersions[platform] || [];
 

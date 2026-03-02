@@ -379,15 +379,33 @@ def update_config():
 
 @app.route('/api/teams', methods=['GET'])
 def get_teams():
+    h_query, params = get_filtered_hosts_subquery()
+
+    query = f"""
+        SELECT DISTINCT h.team_name
+        FROM fleet_hosts h
+        WHERE h.host_id IN ({h_query}) AND h.team_name IS NOT NULL
+        ORDER BY h.team_name
+    """
+
     with db.get_db_cursor() as cur:
-        cur.execute("SELECT DISTINCT team_name FROM fleet_teams WHERE team_name IS NOT NULL ORDER BY team_name")
+        cur.execute(query, params)
         teams = [row['team_name'] for row in cur.fetchall()]
         return jsonify({"teams": teams})
 
 @app.route('/api/platforms', methods=['GET'])
 def get_platforms():
+    h_query, params = get_filtered_hosts_subquery()
+
+    query = f"""
+        SELECT DISTINCT h.platform
+        FROM fleet_hosts h
+        WHERE h.host_id IN ({h_query}) AND h.platform IS NOT NULL
+        ORDER BY h.platform
+    """
+
     with db.get_db_cursor() as cur:
-        cur.execute("SELECT DISTINCT platform FROM fleet_hosts WHERE platform IS NOT NULL ORDER BY platform")
+        cur.execute(query, params)
         platforms = [row['platform'] for row in cur.fetchall()]
         return jsonify({"platforms": platforms})
 
@@ -400,8 +418,16 @@ def get_labels():
 
 @app.route('/api/os-versions', methods=['GET'])
 def get_os_versions():
+    h_query, params = get_filtered_hosts_subquery()
+
+    query = f"""
+        SELECT DISTINCT h.platform, h.platform_version
+        FROM fleet_hosts h
+        WHERE h.host_id IN ({h_query}) AND h.platform IS NOT NULL
+    """
+
     with db.get_db_cursor() as cur:
-        cur.execute("SELECT DISTINCT platform, platform_version FROM fleet_hosts WHERE platform IS NOT NULL")
+        cur.execute(query, params)
         os_versions = {}
         for row in cur.fetchall():
             plat = row['platform']

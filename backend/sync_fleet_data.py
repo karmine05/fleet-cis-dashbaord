@@ -297,20 +297,10 @@ def sync_data():
                 cur.execute("DELETE FROM fleet_hosts WHERE host_id = ANY(%s)", (list(stale_ids),))
             print(f"  ✅ Removed {len(stale_ids)} stale hosts.")
 
-        # 3. Host Labels - Query hosts by each label
-        print("  🔄 Syncing host-label associations...")
-        all_labels = fetch_labels()
-        host_labels_buffer = []
-
-        for label in all_labels:
-            label_id = label['id']
-            host_ids_for_label = fetch_hosts_by_label(label_id)
-            for hid in host_ids_for_label:
-                host_labels_buffer.append((hid, label_id))
-
+        # 3. Host Labels - Save labels collected during host fetch (populate_labels=true)
         if host_labels_buffer:
             print(f"  🔄 Saving {len(host_labels_buffer)} host-label associations...")
-            # Delete existing labels for processed hosts
+            # Delete existing labels for all processed hosts
             processed_host_ids = list(set(h for h, _ in host_labels_buffer))
             if processed_host_ids:
                 with db.get_db_cursor(commit=True) as cur:
@@ -322,6 +312,8 @@ def sync_data():
                     ON CONFLICT DO NOTHING
                 """, host_labels_buffer)
             print(f"  ✅ Synced {len(host_labels_buffer)} host-label associations.")
+        else:
+            print(f"  ✅ No host labels to sync.")
 
         # 4. Policies & Results
         policies = fetch_policies(teams)
