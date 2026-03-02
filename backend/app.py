@@ -539,7 +539,8 @@ def get_compliance_summary():
             "total_policies": total_pol,
             "policies_passed": passed,
             "policies_failed": failed,
-            "policy_pass_rate": pass_rate
+            "policy_pass_rate": pass_rate,
+            "total_policy_results": total_pol
         })
 
 @app.route('/api/safeguard-compliance', methods=['GET'])
