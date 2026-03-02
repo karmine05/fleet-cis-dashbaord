@@ -285,9 +285,23 @@ function updateMetrics(summary) {
 
     // Risk level
     let riskLevel = 'LOW';
-    if (rate < 50) riskLevel = 'CRITICAL';
+    // Edge case: no summary data
+    if (!summary) {
+        riskLevel = 'UNAVAILABLE';
+    }
+    // Edge case: no devices
+    else if (total === 0) {
+        riskLevel = 'UNAVAILABLE';
+    }
+    // Edge case: no policy results (mapping not possible)
+    else if (summary.total_policy_results === 0) {
+        riskLevel = 'HIGH';
+    }
+    // Normal calculation
+    else if (rate < 50) riskLevel = 'CRITICAL';
     else if (rate < 70) riskLevel = 'HIGH';
     else if (rate < 85) riskLevel = 'MEDIUM';
+
     if (riskLevelEl) riskLevelEl.textContent = riskLevel;
 }
 
