@@ -9,8 +9,17 @@ let currentFilters = {
     osVersion: ''
 };
 
+function showLoading() {
+    document.getElementById('loading-overlay')?.classList.remove('hidden');
+}
+
+function hideLoading() {
+    document.getElementById('loading-overlay')?.classList.add('hidden');
+}
+
 // Initialize
 async function init() {
+    showLoading();
     await populateFilters();
     await updateDashboard();
     setupEventListeners();
@@ -215,6 +224,7 @@ function resetFilters() {
 }
 
 async function updateDashboard() {
+    showLoading();
     currentFilters = {
         team: document.getElementById('team-filter').value,
         platform: document.getElementById('platform-filter').value,
@@ -251,6 +261,8 @@ async function updateDashboard() {
     } catch (error) {
         console.error('Error updating dashboard:', error);
         showError(error.message);
+    } finally {
+        hideLoading();
     }
 }
 
