@@ -1,128 +1,200 @@
-# Fleet CIS Compliance Dashboard 🛡️
+# Fleet CIS Compliance Dashboard
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-Enabled-blue?logo=docker)](https://www.docker.com/)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-blue?logo=python)](https://www.python.org/)
+[![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-blue?logo=postgresql)](https://www.postgresql.org/)
 
-**Compliance doesn't have to be a black box.** 
-
-This dashboard transforms dry security benchmarks into a living, breathing view of your fleet's health. By connecting **CIS Controls v8.1** with **MITRE ATT&CK** and **D3FEND**, we help you move beyond "checking boxes" to actually understanding your defensive posture in real-time.
-
----
-
-## 📋 What you'll need
-
-Before diving in, make sure your Fleet instance is running the supported policies. Currently, we've optimized this dashboard for these specific CIS 8.1 benchmarks from the [fleet_policies](https://github.com/karmine05/fleet_policies) repo:
-
-*   **macOS 26.x**: [CIS-8.1/macOS26](https://github.com/karmine05/fleet_policies/tree/main/CIS-8.1/macOS26)
-*   **Windows 11**: [CIS-8.1/win11/intune](https://github.com/karmine05/fleet_policies/tree/main/CIS-8.1/win11/intune)
-*   **ubuntu 24.04**: [CIS-8.1/ubuntu24](https://github.com/karmine05/fleet_policies/blob/main/CIS-8.1/ubuntu24/24.04)
+A real-time compliance dashboard that transforms CIS Benchmarks into actionable security intelligence. Built for security teams who need to move beyond checkbox compliance to understanding their actual defensive posture.
 
 ---
 
-## 🚀 Get started in 5 minutes
+## Who This Is For
 
-Everything is packed into neat containers so you can get up and running without wrestling with dependencies.
+| Audience | What You'll Get |
+|----------|----------------|
+| **IT Auditors** | Clear compliance percentages, failed policy lists, and remediation steps for audit evidence |
+| **Security Teams** | MITRE ATT&CK mapping, D3FEND defensive techniques, and risk prioritization |
+| **Executives** | High-level compliance scores, trend analysis, and priority action items |
+| **SOC Analysts** | Real-time visibility into endpoint security gaps and their business impact |
 
-### 1. Tell the app where your Fleet is
-Open `docker-compose.yml` and drop in your credentials under the `backend` and `sync` services:
+---
 
-```yaml
-environment:
-  - FLEET_URL=https://your-fleet-instance.com
-  - FLEET_API_TOKEN=your-secret-token
+## Quick Start
+
+### Prerequisites
+
+- Docker and Docker Compose
+- A running Fleet instance with CIS policies deployed
+- Fleet API token with read access
+
+### Supported Platforms
+
+This dashboard integrates with CIS Controls v8.1 benchmarks from the [fleet_policies](https://github.com/karmine05/fleet_policies) repo:
+
+- **macOS 26.x**: [CIS-8.1/macOS26](https://github.com/karmine05/fleet_policies/tree/main/CIS-8.1/macOS26)
+- **Windows 11**: [CIS-8.1/win11/intune](https://github.com/karmine05/fleet_policies/tree/main/CIS-8.1/win11/intune)
+- **Ubuntu 24.04**: [CIS-8.1/ubuntu24](https://github.com/karmine05/fleet_policies/blob/main/CIS-8.1/ubuntu24/24.04)
+
+### Setup
+
+1. **Configure Fleet credentials**
+
+   Edit `docker-compose.yml` and update these environment variables:
+
+   ```yaml
+   environment:
+     - FLEET_URL=https://your-fleet-instance.com
+     - FLEET_API_TOKEN=your-fleet-api-token
+   ```
+
+2. **Start the dashboard**
+
+   ```bash
+   docker-compose up -d --build
+   ```
+
+3. **Access the dashboard**
+
+   Open [http://localhost:8081](http://localhost:8081)
+
+---
+
+## Features
+
+### Dashboard Views
+
+| View | Purpose |
+|------|---------|
+| **Summary** | Compliance percentage, device counts, risk level indicator |
+| **Security Architecture** | Interactive D3FEND heatmap showing defensive coverage |
+| **Compliance Audit** | Detailed list of failed policies with remediation steps |
+| **Executive Strategy** | Fleet leaderboard, trends, and priority actions |
+
+### Framework Integrations
+
+- **CIS Controls v8.1**: Base benchmark framework
+- **MITRE ATT&CK**: Maps failed controls to adversary techniques
+- **D3FEND**: Recommends defensive countermeasures for gaps
+
+### Risk Level Logic
+
+The dashboard automatically handles edge cases:
+
+| Condition | Risk Level |
+|-----------|------------|
+| No hosts enrolled | UNAVAAILABLE |
+| No policy results (mapping not possible) | HIGH |
+| Compliance < 50% | CRITICAL |
+| Compliance 50-70% | HIGH |
+| Compliance 70-85% | MEDIUM |
+| Compliance > 85% | LOW |
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Nginx (Port 8081)                      │
+│                    Serves UI + Reverse Proxy                │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+          ┌───────────────┴───────────────┐
+          │                               │
+    ┌─────▼─────┐                  ┌────▼────┐
+    │  Backend  │                  │  Sync   │
+    │ (Flask)   │◄─────────────────│ Daemon  │
+    └─────┬─────┘                  └─────────┘
+          │
+    ┌─────┴─────┐
+    │           │
+┌───▼───┐   ┌──▼────┐
+│  DB   │   │ Redis │
+│(Postgres)│ (Cache)│
+└───────┘   └───────┘
 ```
 
-### 2. Fire it up
-Run this in your terminal:
-```bash
-docker-compose up -d --build
-```
-
-### 3. Take a look!
-Head over to [http://localhost:8081](http://localhost:8081) and start exploring your data.
-
----
-
-## ✨ Features we love
-
-### 🗺️ Context is King
-Standard audits tell you *what* failed. We tell you *why it matters*.
-*   **MITRE ATT&CK**: See exactly which adversary techniques you're leaving the door open for.
-*   **D3FEND**: Get actionable defensive techniques to close those gaps.
-
-### 🏛️ Views for everyone
-*   **The Summary**: Fast stats for the daily pulse.
-*   **Security Architecture**: An interactive matrix that turns compliance into a map.
-*   **Compliance Audit**: The "to-do list" with clear remediation steps.
-*   **Executive Strategy**: Simplified views to help leaders make informed decisions.
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Frontend | Vanilla JS + Chart.js | Interactive dashboard |
+| Backend | Flask + Gunicorn | REST API |
+| Sync | Python daemon | Fleet data synchronization |
+| Database | PostgreSQL 16 | Persistent storage with time partitioning |
+| Cache | Redis 7 | API response caching |
+| Web Server | Nginx | UI serving + reverse proxy |
 
 ---
 
-## � Safe by Design
+## Configuration
 
-We take the security of your security tools seriously. Under the hood, this project is built with hardening in mind:
-- **No Root Allowed**: The backend runs as a non-privileged `appuser`, so even in the worst-case scenario, the blast radius is strictly limited.
-- **Isolated Services**: Your frontend and backend live in separate "rooms" (containers), meaning they can't peek into each other's business.
-- **Nginx at the Helm**: We use a battle-tested Nginx server to handle your traffic, providing a much safer layer than standard development servers.
-- **Granular CORS Control**: The API is not a free-for-all. You can restrict which domains are allowed to talk to your backend.
-  - 💡 **Pro-tip**: Control allowed cross-origin domains by setting the `ALLOWED_ORIGINS` variable in your `docker-compose.yml`:
-    ```yaml
-    backend:
-      environment:
-        - ALLOWED_ORIGINS=https://dashboard.yourdomain.com,http://localhost:8081
-    ```
+### Environment Variables
 
----
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `FLEET_URL` | Your Fleet instance URL | Required |
+| `FLEET_API_TOKEN` | Fleet API token | Required |
+| `DATABASE_URL` | PostgreSQL connection | `postgresql://postgres:postgres@db:5432/fleet_cis` |
+| `REDIS_URL` | Redis connection | `redis://redis:6379/0` |
+| `ALLOWED_ORIGINS` | CORS allowed domains | `http://localhost:8081` |
+| `SYNC_INTERVAL_MINUTES` | Sync frequency | `15` |
 
-## ⚙️ How it works
+### Adjusting Thresholds
 
-The dashboard is built on a simple, reliable stack:
+Access the Settings page to configure:
 
-| Part | Tech | Role |
-| :--- | :--- | :--- |
-| **The Face** | Nginx | Serves the UI and keeps API requests secure. |
-| **The Brain** | Flask / Gunicorn | Handles logic and serves data (Python 3.11). |
-| **The Scout** | Sync Daemon | Quietly talks to Fleet every 15 minutes to fetch updates. |
-| **The Memory** | PostgreSQL 16 | Keeps a persistent record of your compliance history. |
-| **The Helper** | Redis 7 | Keeps things snappy with smart caching. |
+- **Risk Exposure Multiplier**: Weight for risk calculations
+- **Impact Thresholds**: Define what counts as high/medium impact
+- **Effort Keywords**: Classify remediation effort by query output
+- **Framework Multipliers**: Customize scoring by compliance framework
 
 ---
 
-## � Where everything lives
+## Data Sync
 
-If you're looking to tweak things, here's the lay of the land:
+The sync daemon runs every 15 minutes automatically. View logs:
 
-```text
-fleet-cis-dashboard/
-├── backend/            # The Brains (API & Data Sync)
-│   ├── app.py          # Where the API starts
-│   ├── sync_daemon.py  # The background worker
-│   └── cis_to_d3fend.csv # The "Magic Map" between frameworks
-├── frontend/           # The Face (UI Logic)
-│   ├── index.html      # The main page
-│   └── app.js          # The charts and interactive bits
-├── Dockerfile.backend  # Instructions for building the backend
-├── Dockerfile.frontend # Instructions for building the frontend
-└── docker-compose.yml  # The orchestrator that ties it all together
-```
-
----
-
-## 🔄 Keeping data fresh
-
-The **Sync Daemon** runs in the background every 15 minutes. If you want to see what it's doing, you can watch the logs:
 ```bash
 docker-compose logs -f sync
 ```
 
-Need data **right now**? Force an immediate update with:
+Force an immediate sync:
+
 ```bash
 docker-compose exec sync python backend/sync_fleet_data.py
 ```
 
 ---
 
-## ⚖️ License
+## Security
 
-This project is open-source and available under the MIT License. Feel free to use, modify, and share!
+- **Non-root container**: Backend runs as unprivileged `appuser`
+- **Network isolation**: Services communicate on internal network only
+- **CORS protection**: API restricted to configured origins
+- **No secrets in image**: All credentials passed via environment
+
+---
+
+## Troubleshooting
+
+### No data showing up
+
+1. Check Fleet credentials in `docker-compose.yml`
+2. Verify sync daemon is running: `docker-compose ps`
+3. Check sync logs: `docker-compose logs sync`
+
+### Database connection errors
+
+1. Wait for PostgreSQL to be healthy: `docker-compose ps`
+2. Check logs: `docker-compose logs db`
+
+### Frontend not loading
+
+1. Verify nginx is running: `docker-compose ps`
+2. Check logs: `docker-compose logs nginx`
+
+---
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.
