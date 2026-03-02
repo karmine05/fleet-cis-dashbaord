@@ -40,13 +40,20 @@ This dashboard integrates with CIS Controls v8.1 benchmarks from the [fleet_poli
 
 1. **Configure Fleet credentials**
 
-   Edit `docker-compose.yml` and update these environment variables:
+   Copy the example environment file and edit it with your Fleet credentials:
 
-   ```yaml
-   environment:
-     - FLEET_URL=https://your-fleet-instance.com
-     - FLEET_API_TOKEN=your-fleet-api-token
+   ```bash
+   cp .env.example .env
    ```
+
+   Edit `.env` and set your values:
+
+   ```
+   FLEET_URL=https://your-fleet-instance.com
+   FLEET_API_TOKEN=your-fleet-api-token
+   ```
+
+   Docker Compose automatically loads variables from `.env` when you run `docker-compose up`.
 
 2. **Start the dashboard**
 
@@ -179,7 +186,7 @@ docker-compose exec sync python backend/sync_fleet_data.py
 
 ### No data showing up
 
-1. Check Fleet credentials in `docker-compose.yml`
+1. Check Fleet credentials in `.env`
 2. Verify sync daemon is running: `docker-compose ps`
 3. Check sync logs: `docker-compose logs sync`
 
